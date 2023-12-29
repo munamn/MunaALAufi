@@ -1,0 +1,92 @@
+Mapper:
+import java.io.IOException;  
+import org.apache.hadoop.io.IntWritable; 
+import org.apache.hadoop.io.Text;  
+import org.apache.hadoop.mapreduce.Mapper; 
+
+public class ComplaintsMapper extends Mapper<Object, Text, Text, IntWritable > { 
+
+private final static IntWritable one = new IntWritable(1); 
+
+private Text CustomerComplaintType = new Text(); 
+
+public void map(Object key, Text value, Context context) throws IOException, InterruptedException { 
+
+// Split CSV line 
+
+String[] lines = value.toString() .split(","); 
+
+// Check if line is not header and has enough data 
+
+if (lines. length > 3 && lines [0]. equals("Complaint ID")) { 
+
+String type = lines[3]; // Assuming the 4th column is Complaint Type 
+
+ CustomerComplaintType.set(type); 
+
+context.write(CustomerComplaintType, one); 
+
+} 
+
+} 
+
+}
+
+Reducer
+
+import java.io.IOException; 
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.io.IntWritable; 
+import org.apache.hadoop.io.Text;  
+ 
+public class ComplaintsReducer extends Reducer<Text, IntWritable, Text, IntWritable > {
+
+private IntWritable result = new IntWritable (); 
+
+public void reduce(Text key, Iterable<IntWritable > values, Context context) throws IOException, InterruptedException { 
+
+int summary = 0; 
+
+for (IntWritable val : values) { 
+
+summary += val. get(); 
+
+} 
+
+ result.set(summary); 
+
+context.write(key, result); 
+
+} 
+
+} 
+
+Driver
+import org.apache.hadoop.conf.Configured; 
+import org.apache.hadoop.fs.Path; 
+import java.io.IOException;  
+import org.apache.hadoop.io.IntWritable; 
+import org.apache.hadoop.io.Text;  
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.Job;  
+import org.apache.hadoop.mapred.FileInputFormat; 
+import org.apache.hadoop.mapred.FileOutputFormat; 
+import org.apache.hadoop.util.Tool;
+
+
+public abstract class ComplaintsDriver extends Configured implements Tool {
+public void main(String args[]) throws IOException, ClassNotFoundException, InterruptedException
+{
+
+	 JobConf conf = new JobConf(ComplaintsDriver.class);  
+	 Job job = Job.getInstance(conf, "Customer Complaints Analysis"); 	
+	 job.setMapperClass(ComplaintsMapper.class); 
+	 job.setReducerClass(ComplaintsReducer.class); 
+	 job.setOutputKeyClass(Text.class);  
+	 job.setOutputValueClass(IntWritable.class);  
+	 FileInputFormat.setInputPaths(conf, new Path(args[0])); 
+	 FileOutputFormat.setOutputPath(conf, new Path(args[1])); 
+	 System.exit(job.waitForCompletion(true) ? 0 : 1 );
+	 
+	}
+}
